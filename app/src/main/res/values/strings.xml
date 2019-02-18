@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">PartnerMap</string>
+
+    <string name="show_map_button">Show Map</string>
+    <string name="show_list_button">Show List</string>
+
+    <string name="element_text">Element</string>
+
+</resources>
