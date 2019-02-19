@@ -13,10 +13,14 @@ import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements MapFragment.MapInterface {
 
@@ -31,6 +35,8 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
     double myLat;
     double myLng;
 
+    boolean startup = true;
+
     // TODO: Send my location to API
     // TODO: Allow user to input username
 
@@ -44,6 +50,11 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if(startup) {
+            registerLocation();
+            startup = false;
+        }
 
         singlePane = findViewById(R.id.container_2) != null;
         mapDisplayed = true;
@@ -64,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                 @Override
                 public void onClick(View v) {
                     if(mapDisplayed) {
+                        //listFragment = new ListFragment();
                         fm.beginTransaction()
                                 .replace(R.id.container_1, listFragment)
                                 .commit();
@@ -72,6 +84,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                         listDisplayed = true;
                     }
                     else {
+                        mapFragment = new MapFragment();
                         fm.beginTransaction()
                                 .replace(R.id.container_1, mapFragment)
                                 .commit();
@@ -90,6 +103,35 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
 
         // TODO: update this every 30 seconds
         getPartners();
+    }
+
+    public void registerLocation() {
+        RequestQueue requestQueue = Volley.newRequestQueue(this);
+        final String url = "https://kamorris.com/lab/register_location.php";
+
+        StringRequest myReq = new StringRequest(Request.Method.POST,
+                url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                Log.e(" post", "it happened");
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.e(" post", "it went poorly");
+            }
+        }) {
+
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("user", "Will");
+                params.put("latitude", "39.985");
+                params.put("longitude", "-75.1552");
+                return params;
+            };
+        };
+        requestQueue.add(myReq);
+
     }
 
     public void getPartners() {
@@ -124,12 +166,23 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                                 Log.e(" result","lol nope");
                             }
                         }
-                        if(listDisplayed)
+
+                        // trying to do it all at once
+                        listFragment.makeAndAssignPartnerData(partners);
+                        mapFragment.getPartnerPins(partners);
+
+
+ /*
+                        if(listDisplayed) {
                             listFragment.makeAndAssignPartnerData(partners);
-                        else if(mapDisplayed)
-                            Log.i(" result", "map stuff");
+                            Log.e(" maptrack", "sent partners to list");
+                        }
+                        else if(mapDisplayed) {
+                            mapFragment.getPartnerPins(partners);
+                            Log.e(" maptrack", "sent partners to map");
+                        }
                         else
-                            Log.e(" result", "nothing's displaying?");
+                            Log.e(" result", "nothing's displaying?"); */
                     }
                 },
                 new Response.ErrorListener()

@@ -13,6 +13,7 @@ import android.os.PersistableBundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,6 +27,7 @@ import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -41,6 +43,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     GoogleMap map;
     Marker lastMarker;
     MapInterface parent;
+    Partner[] partners;
+    Marker[] partnerMarkers;
 
     // TODO: display pins for all partners
 
@@ -77,13 +81,21 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 } else {
                     MarkerOptions markerOptions = (new MarkerOptions())
                             .position(latLng)
-                            .title("Waldo");
+                            .title("Waldo")
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
 
                     lastMarker = map.addMarker(markerOptions);
                 }
 
+                if (partners != null) {
+                    displayPartnerPins();
+                    Log.e(" result", "partners isn't null");
+                }
+                else
+                    Log.e(" result", "partners is null");
+
                 CameraUpdate cameraUpdate = CameraUpdateFactory
-                        .newLatLngZoom(lastMarker.getPosition(), 16);
+                        .newLatLngZoom(lastMarker.getPosition(), 15);
 
                 map.moveCamera(cameraUpdate);
             }
@@ -105,6 +117,34 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         };
 
         return v;
+    }
+
+    public void getPartnerPins(Partner[] thePartners) {
+        Log.e(" maptrack", "the map got markers");
+
+        partners = thePartners;
+        partnerMarkers = new Marker[partners.length];
+    }
+
+    public void displayPartnerPins() {
+        int length = partners.length;
+        LatLng latLng;
+
+        for(int i=0; i<length; i++) {
+
+            latLng = new LatLng(partners[i].latitude, partners[i].longitude);
+
+            if (partnerMarkers[i] != null) {
+                partnerMarkers[i].setPosition(latLng);
+
+            } else {
+                partnerMarkers[i] = map.addMarker(
+                        new MarkerOptions()
+                        .position(latLng)
+                        .title(partners[i].toString()));
+                Log.e(" map", "added marker: " + partners[i].toString());
+            }
+        }
     }
 
     @Override

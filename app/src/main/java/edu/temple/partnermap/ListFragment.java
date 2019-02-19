@@ -30,9 +30,6 @@ public class ListFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        //initDataset();
-        //makeAndAssignPartnerData();
     }
 
     @Override
@@ -52,17 +49,6 @@ public class ListFragment extends Fragment {
         mRecyclerView.setAdapter(mAdapter);
 
         return v;
-    }
-
-    /**
-     * Generates Strings for RecyclerView's adapter. This data would usually come
-     * from a local content provider or remote server.
-     */
-    private void initDataset() {
-        mDataset = new String[DATASET_COUNT];
-        for (int i = 0; i < DATASET_COUNT; i++) {
-            mDataset[i] = "This is element #" + i;
-        }
     }
 
 
@@ -93,7 +79,7 @@ public class ListFragment extends Fragment {
 
         for (int i = 0; i < n-1; i++)
             for (int j = 0; j < n-i-1; j++)
-                if (partners[j].compareTo(partners[j+1]) > 0)
+                if (partners[j].compareTo(partners[j+1]) < 0)
                 {
                     // swap arr[j+1] and arr[i]
                     Partner temp = partners[j];
