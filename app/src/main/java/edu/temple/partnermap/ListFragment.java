@@ -10,6 +10,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.util.List;
+
 
 /**
  * A simple {@link Fragment} subclass.
@@ -57,41 +59,41 @@ public class ListFragment extends Fragment {
      *  Trust me this stuff won't be in the same shape when I present it
      */
 
-    Partner[] partners;
+    List<Partner> partners;
+    int length;
 
-    public void makeAndAssignPartnerData(Partner[] thePartners) {
+    public void makeAndAssignPartnerData(List<Partner> thePartners) {
+        if (thePartners.toArray() != null)
+            length = thePartners.toArray().length;
+        else
+            length = 0;
         makePartnerDataset(thePartners);
         partnerBubbleSort();
         convertPartnerArray();
     }
 
-    private void makePartnerDataset(Partner[] thePartners) {
-        partners = thePartners; /*new Partner[5];
-        partners[0] = new Partner("steve top", 123, 123, 5);
-        partners[1] = new Partner("steve bot", 123, 123, 9);
-        partners[2] = new Partner("steve mid", 123, 123, 7);
-        partners[3] = new Partner("bob high", 123, 123, 6);
-        partners[4] = new Partner("bob low", 123, 123, 8); */
+    private void makePartnerDataset(List<Partner> thePartners) {
+        partners = thePartners;
     }
 
     private void partnerBubbleSort() {
-        int n = partners.length;
+        int n = length;
 
         for (int i = 0; i < n-1; i++)
             for (int j = 0; j < n-i-1; j++)
-                if (partners[j].compareTo(partners[j+1]) < 0)
+                if (partners.get(j).compareTo(partners.get(j+1)) < 0)
                 {
                     // swap arr[j+1] and arr[i]
-                    Partner temp = partners[j];
-                    partners[j] = partners[j+1];
-                    partners[j+1] = temp;
+                    Partner temp = partners.get(j);
+                    partners.set(j,partners.get(j+1));
+                    partners.set(j+1, temp);
                 }
     }
 
     private void convertPartnerArray() {
-        mDataset = new String[partners.length];
-        for (int i = 0; i < partners.length; i++) {
-            mDataset[i] = partners[i].toString();
+        mDataset = new String[length];
+        for (int i = 0; i < length; i++) {
+            mDataset[i] = partners.get(i).toString();
         }
     }
 }

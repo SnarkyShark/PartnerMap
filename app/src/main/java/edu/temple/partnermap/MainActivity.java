@@ -19,7 +19,9 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements MapFragment.MapInterface {
@@ -31,7 +33,9 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
     boolean mapDisplayed, listDisplayed;
     MapFragment mapFragment;
     ListFragment listFragment;
-    Partner[] partners;
+
+    List<Partner> partners;
+
     double myLat;
     double myLng;
 
@@ -150,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                         Log.e(" result",(String.valueOf(response)));
                         Log.e(" result","response length: " + len);
 
-                        partners = new Partner[len];
+                        partners = new ArrayList<>();
                         for(int i=0; i<len; i++) {
                             try {
                                 JSONObject jresponse = response.getJSONObject(i);
@@ -159,8 +163,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                                 double lng = jresponse.getDouble("longitude");
                                 double dist = distance(lat, lng);
 
-                                partners[i] = new Partner(user, lat, lng, dist);
-                                Log.e(" result","partner dist: " + partners[i].distFromMe);
+                                partners.add(new Partner(user, lat, lng, dist));
                             } catch (Exception e) {
                                 e.printStackTrace();
                                 Log.e(" result","lol nope");

@@ -32,6 +32,8 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.List;
+
 
 // YOU NEED TO REMEMBER TO TELL IT TO IMPLEMENT THE INTERFACE
 public class MapFragment extends Fragment implements OnMapReadyCallback {
@@ -119,10 +121,16 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         return v;
     }
 
-    public void getPartnerPins(Partner[] thePartners) {
+    public void getPartnerPins(List<Partner> thePartners) {
         Log.e(" maptrack", "the map got markers");
 
-        partners = thePartners;
+        partners = new Partner[thePartners.toArray().length];
+
+        thePartners.toArray(partners);
+
+        Log.e(" maptrack", "second partner: " + partners[1].toString());
+        // so partners is converted successfully, but no pins are showing
+
         partnerMarkers = new Marker[partners.length];
     }
 
