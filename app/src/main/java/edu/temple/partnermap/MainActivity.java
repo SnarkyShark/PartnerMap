@@ -41,8 +41,10 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
 
     boolean startup = true;
 
-    // TODO: Send my location to API
-    // TODO: Allow user to input username
+    // TODO: allow user to input name
+    // TODO: store user's input name
+    // TODO: fix post issue--getting ERROR result currently
+    // TODO: get Partners every 30 seconds
 
     /**
      * possible concerns:
@@ -57,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
 
         if(startup) {
             registerLocation();
+            getPartners();
             startup = false;
         }
 
@@ -86,6 +89,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                         swapFragmentButton.setText(R.string.show_map_button);
                         mapDisplayed = false;
                         listDisplayed = true;
+                        getPartners();
                     }
                     else {
                         mapFragment = new MapFragment();
@@ -95,6 +99,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                         swapFragmentButton.setText(R.string.show_list_button);
                         mapDisplayed = true;
                         listDisplayed = false;
+                        getPartners();
                     }
                 }
             });
@@ -103,10 +108,9 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
             fm.beginTransaction()
                     .replace(R.id.container_2, listFragment)
                     .commit();
+            getPartners();
         }
 
-        // TODO: update this every 30 seconds
-        getPartners();
     }
 
     public void registerLocation() {
@@ -117,7 +121,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                 url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
-                Log.e(" post", "it happened");
+                Log.e(" post", "Result: " + response);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -132,7 +136,7 @@ public class MainActivity extends AppCompatActivity implements MapFragment.MapIn
                 params.put("latitude", "39.985");
                 params.put("longitude", "-75.1552");
                 return params;
-            };
+            }
         };
         requestQueue.add(myReq);
 

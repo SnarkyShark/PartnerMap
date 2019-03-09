@@ -17,6 +17,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
@@ -47,8 +48,6 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     MapInterface parent;
     Partner[] partners;
     Marker[] partnerMarkers;
-
-    // TODO: display pins for all partners
 
     public MapFragment() {
         // Required empty public constructor
@@ -83,21 +82,34 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 } else {
                     MarkerOptions markerOptions = (new MarkerOptions())
                             .position(latLng)
-                            .title("Waldo")
+                            .title("Me")
                             .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
 
                     lastMarker = map.addMarker(markerOptions);
                 }
 
+                int zoom = 15;
+
                 if (partners != null) {
                     displayPartnerPins();
                     Log.e(" result", "partners isn't null");
+
+                    zoom = 1300 / (int) partners[0].distFromMe;
+                    Log.e(" maptrack", "zoom: " + zoom);
+
+                    //zoom = 10;
+
+                    // 127 away - can't see with 15
+                    // 10 shows ~100 away
+                    // 5 shows north america
+                    // bigger shows less
                 }
-                else
+                else {
                     Log.e(" result", "partners is null");
+                }
 
                 CameraUpdate cameraUpdate = CameraUpdateFactory
-                        .newLatLngZoom(lastMarker.getPosition(), 15);
+                        .newLatLngZoom(lastMarker.getPosition(), zoom);
 
                 map.moveCamera(cameraUpdate);
             }
@@ -128,7 +140,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
         thePartners.toArray(partners);
 
-        Log.e(" maptrack", "second partner: " + partners[1].toString());
+        //Log.e(" maptrack", "second partner: " + partners[1].toString());
         // so partners is converted successfully, but no pins are showing
 
         partnerMarkers = new Marker[partners.length];
@@ -150,7 +162,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                         new MarkerOptions()
                         .position(latLng)
                         .title(partners[i].toString()));
-                Log.e(" map", "added marker: " + partners[i].toString());
+                Log.e(" maptrack", partners[i].toString() + ": " + partners[i].distFromMe);
+                // it says that it adds all relevant markers, but i don't see any
             }
         }
     }
