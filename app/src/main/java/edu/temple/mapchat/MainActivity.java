@@ -17,6 +17,7 @@ import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcEvent;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -33,11 +34,13 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -56,10 +59,12 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static android.provider.AlarmClock.EXTRA_MESSAGE;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, NfcAdapter.CreateNdefMessageCallback {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     // username
     String username;
@@ -67,7 +72,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     Button usernameButton;
     private SharedPreferences sharedPref;
     private static final String USER_PREF_KEY = "USERNAME_PREF";
-    Context context;
 
     // map
     private LocationManager lm;
@@ -75,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap mMap;
     private Marker lastMarker;
     private Location mLocation;
+    private HashMap<String,Marker> mMarkers = new HashMap<>();
     private static final String LOC_LAT = "LAST_LAT";
     private static final String LOC_LNG = "LAST_LNG";
     private static final String LOC_PRO = "LAST_PRO";
@@ -91,13 +96,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String getFriendsUrl = "https://kamorris.com/lab/get_locations.php";
     private String postPosUrl = "https://kamorris.com/lab/register_location.php";
 
-    // Android Beam
-    NfcAdapter nfcAdapter;
-    private PendingIntent mPendingIntent;
-
-    // service
-    KeyService mService;
-    boolean mBound = false;
+    // this is a test change to try to get github & logcat working again
+    //
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -141,27 +141,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             mLocation.setLatitude(Double.parseDouble(lat));
             mLocation.setLongitude(Double.parseDouble(lon));
         }
-        if (mLocation != null && mMap != null)
-            displayYourPin(mLocation);
-
 
         // list of friends
         friendNamesAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_list_item_1, friendNames);
         listView.setAdapter(friendNamesAdapter);
-        listView.setOnItemClickListener(messageClickedHandler);
 
         // api
         queue = Volley.newRequestQueue(this);
-        //get();
 
-        // Android Beam
-        Intent nfcIntent = new Intent(this, MainActivity.class);
-        nfcIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        mPendingIntent = PendingIntent.getActivity(this, 0, nfcIntent, 0);
+        // update partnermap & listview every 30 seconds
+        final Handler handler = new Handler();
+        final int delay = 30000; //milliseconds
 
-        nfcAdapter = NfcAdapter.getDefaultAdapter(this);
-        nfcAdapter.setNdefPushMessageCallback(this, this);
+        handler.postDelayed(new Runnable(){
+            public void run(){
+                get();
+                handler.postDelayed(this, delay);
+            }
+        }, delay);
     }
 
     /**
@@ -173,11 +171,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         String storedUsername = sharedPref.getString(USER_PREF_KEY, null);
         if(storedUsername != null) {
             username = storedUsername;
+            post();
+            Log.e(" posttest", "tried to call method");
             setTitle("username: " + username);
         }
         else
             Toast.makeText(this, "please enter a username", Toast.LENGTH_SHORT).show();
-        // TODO: post current location
     }
 
     private void setUsername() {
@@ -186,20 +185,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // generate new username
         username = usernameEditText.getText().toString();
         usernameReady = username.compareTo("") != 0;
-
-        if (usernameReady) { // generate keypair
-            Log.e( "usertrack", "username is not 0");
-            mService.genMyKeyPair(username);
+        if (usernameReady) {
             usernameReady = sharedPref.edit().putString(USER_PREF_KEY, username).commit();
         }
-
         if (usernameReady) {
             setTitle("username: " + username);
         }
         else {
             Toast.makeText(this, "please enter a valid username", Toast.LENGTH_SHORT).show();
             Log.e( "usertrack", "username wasn't saved to shared preferences");
-        }// TODO: post current location
+        }
+        post();
+        Log.e(" posttest", "tried to call method");
+
     }
 
     /**
@@ -236,18 +234,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                         }
                         Log.e(" friendtest", "successful volley request");
-                        convertFriends(len);
+
+                        updateFriendList(len);
+                        updateMarkerList(len);
                     }
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e(" friendtest", "volley request failed");
+                CameraUpdate cameraUpdate = CameraUpdateFactory
+                        .newLatLngZoom(lastMarker.getPosition(), 14);
+
+                mMap.moveCamera(cameraUpdate);
             }
         });
         queue.add(getRequest);
     }
 
-    public void convertFriends(int len) {
+    public void updateMarkerList(int len) {
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+        for (int i=0; i<len; i++) {
+            String name = friends.get(i).toString();
+            Marker marker = mMarkers.get(name);
+            if(marker == null) {
+                marker = mMap.addMarker(new MarkerOptions().title(name)
+                        .position(friends.get(i).getPosition()));
+                mMarkers.put(name, marker);
+            }
+            else{
+                marker.remove();
+                marker = mMap.addMarker(new MarkerOptions().title(name)
+                        .position(friends.get(i).getPosition()));
+                mMarkers.put(name, marker);
+            }
+            builder.include(marker.getPosition());
+        }
+        LatLngBounds bounds = builder.build();
+        int padding = 40;
+        CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, padding);
+        mMap.animateCamera(cu);
+    }
+
+        public void updateFriendList(int len) {
         try {   // convert Friend arraylist to String arraylist
             friendNames.clear();
             Collections.sort(friends);
@@ -262,7 +290,38 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void post() {
+        Log.d("Post stuff", username + ", " + mLocation);
+        if(username == null || username.equals("") || mLocation == null){
+            Log.e(" posttest", "values were null");
+            return;
+        }
 
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, postPosUrl, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                Log.d("Volley Result", ""+ response);
+                Log.e(" posttest", "got a response");
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                error.printStackTrace();
+                Log.e(" posttest", "got a error response");
+            }
+        }){
+
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> postMap = new HashMap<>();
+                Log.e(" posttest", "tried to post");
+                postMap.put("user", username);
+                postMap.put("latitude", "" + mLocation.getLatitude());
+                postMap.put("longitude", "" + mLocation.getLongitude());
+                return postMap;
+            }
+        };
+        Volley.newRequestQueue(this).add(stringRequest);
+        get();
     }
 
     /**
@@ -275,8 +334,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onLocationChanged(Location location) {
                 Log.e( "marktrack", "location changed");
-                mLocation = location;
-                displayYourPin(location);
+                float distance = mLocation.distanceTo(location);
+                if(distance > 10)   // reported when user moves 10 meters
+                {
+                    mLocation = location;
+                    post();
+                }
             }
             @Override
             public void onStatusChanged(String provider, int status, Bundle extras) {}
@@ -285,28 +348,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onProviderDisabled(String provider) { }
         };
-    }
-
-    private void displayYourPin(Location location) {
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        if (lastMarker != null) {
-            lastMarker.setPosition(latLng);
-        }
-        else {
-            MarkerOptions markerOptions = (new MarkerOptions())
-                    .position(latLng)
-                    .title("You");
-
-            lastMarker = mMap.addMarker(markerOptions);
-            Log.e( "marktrack", "added a marker");
-
-        }
-
-        CameraUpdate cameraUpdate = CameraUpdateFactory
-                .newLatLngZoom(lastMarker.getPosition(), 14);
-
-        mMap.moveCamera(cameraUpdate);
-        Log.e( "marktrack", "tried to do camera stuff");
     }
 
     @Override
@@ -344,100 +385,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         lm.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 0, 0, ll);
     }
 
-    /**
-     * Friends ListView
-     */
-    // Launch ChatActivity
-    private AdapterView.OnItemClickListener messageClickedHandler = new AdapterView.OnItemClickListener() {
-        public void onItemClick(AdapterView parent, View v, int position, long id) {
-            Intent intent = new Intent(parent.getContext(), ChatActivity.class);
-            String friendName = parent.getItemAtPosition(position).toString();
-
-            // check whether friendName has a key or not
-            try {
-                if (mService.getPublicKey(friendName) != null) {
-                    intent.putExtra(EXTRA_FRIEND, friendName);
-                    startActivity(intent);
-                }
-                else {
-                    Toast.makeText(parent.getContext(), "You don't have " + friendName + "'s key!", Toast.LENGTH_SHORT).show();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    };
-
-    /**
-     * Beam Stuff
-     */
-
-    // Set Beam Payload
-    @Override
-    public NdefMessage createNdefMessage(NfcEvent event) {
-        String payload = setKey();
-        NdefRecord record = NdefRecord.createTextRecord(null, payload);
-        return new NdefMessage(new NdefRecord[]{record});
-    }
-
-    private String setKey() {
-        String pubKey = mService.getMyPublicKey();
-        if(pubKey.equals("")){
-            Log.d("SEND EMPTY KEY", "KEY WAS EMPTY!");
-            return "";
-        }
-        else{
-            return "{\"user\":\""+ username +"\",\"key\":\""+ pubKey +"\"}";
-            //Log.d("SENT KEY PAYLOAD", payload);
-        }
-    }
-
-    // Accept Beam Payload
-    void processIntent(Intent intent) {
-        String payload = new String(
-                ((NdefMessage) intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)[0])
-                        .getRecords()[0]
-                        .getPayload());
-        //Lop off the 'en' language code.
-        String jsonString = payload.substring(3);
-        if(jsonString.equals("")){
-            Log.d("Message Recieved?", "Message was empty!");
-        }
-        else {
-            try {
-                JSONObject json = new JSONObject(jsonString);
-                String owner = json.getString("user");
-                String pemKey = json.getString("key");
-
-                if(mBound) {
-                    mService.storePublicKey(owner, pemKey);
-                    Log.e(" beamtrack", "key stored successfully");
-                }
-                else
-                    Log.e(" beamtrack", "key not stored!");
-
-            } catch (JSONException e) {
-                Log.e("JSON Exception", "Convert problem", e);
-            }
-        }
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-        Log.e( " beamtrack", "We resumed");
+        Log.e(" posttest", "we resumed");
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
             registerForLocationUpdates();
         else
             requestPermissions(new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, 111); // make a constant reference
-
-        // Get the intent from Beam
-        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
-            Log.e( " beamtrack", "We discovered an NDEF");
-            processIntent(getIntent());
-        }
-        nfcAdapter.enableForegroundDispatch(this, mPendingIntent, null, null);
 
         get();
     }
@@ -446,7 +402,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onPause() {
         super.onPause();
         lm.removeUpdates(ll);
-        nfcAdapter.disableForegroundDispatch(this);
         if (mLocation != null) {
             sharedPref.edit().putString(LOC_LAT, String.valueOf(mLocation.getLatitude())).apply();
             sharedPref.edit().putString(LOC_LNG, String.valueOf(mLocation.getLongitude())).apply();
@@ -455,52 +410,4 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);  // look for new intents
-    }
-
-    /**
-     * Service Stuff
-     */
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        Intent intent = new Intent(this, KeyService.class);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-        Log.e(" keytrack", "we tried to bind");
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        unbindService(mConnection);
-        mBound = false;
-    }
-
-    /** Defines callbacks for service binding, passed to bindService() */
-    private ServiceConnection mConnection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName className,
-                                       IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
-            KeyService.LocalBinder binder = (KeyService.LocalBinder) service;
-            mService = binder.getService();
-            mBound = true;
-            Log.e(" keytrack", "connected to the service");
-
-            // TODO: Remove later
-            // paul has a key already
-            //mService.testGiveThisManAKey("paul");
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mBound = false;
-        }
-    };
 }
