@@ -77,7 +77,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LocationManager lm;
     private LocationListener ll;
     private GoogleMap mMap;
-    private Marker lastMarker;
     private Location mLocation;
     private HashMap<String,Marker> mMarkers = new HashMap<>();
     private static final String LOC_LAT = "LAST_LAT";
@@ -242,8 +241,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e(" friendtest", "volley request failed");
+                LatLng latLng = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
                 CameraUpdate cameraUpdate = CameraUpdateFactory
-                        .newLatLngZoom(lastMarker.getPosition(), 14);
+                        .newLatLngZoom(latLng, 14);
 
                 mMap.moveCamera(cameraUpdate);
             }
